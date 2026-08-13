@@ -156,7 +156,9 @@ node --check app\static\app.js
 
 The tests cover image analysis, invalid uploads, GeoJSON coordinate order,
 nearby distance sorting, combined filters, admin authorization, report CRUD,
-photo cleanup, and before/after analysis.
+photo cleanup, and before/after analysis. GitHub Actions additionally starts a
+real MongoDB 8 service and executes the geospatial CRUD integration test on
+every push and pull request to `main`.
 
 ## Privacy and production notes
 
