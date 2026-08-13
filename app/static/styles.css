@@ -59,6 +59,9 @@ body {
 .analysis-metric { display: flex; justify-content: space-between; padding: .4rem 0; color: var(--muted); border-bottom: 1px solid var(--line); font-size: .82rem; }
 .analysis-metric:last-child { border: 0; }
 .analysis-metric strong { color: var(--ink); }
+.legal-container { max-width: 760px; }
+.legal-container h2 { margin-top: 2rem; font-size: 1.15rem; }
+.legal-container p { line-height: 1.7; }
 
 @media (max-width: 991.98px) {
   .map-column, #map, .map-fallback { min-height: 480px; }

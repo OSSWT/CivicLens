@@ -9,7 +9,7 @@ from app.config import get_settings
 from app.image_analysis import ImageAnalyzer
 from app.models import PhotoRecord
 from app.repository import MongoReportRepository
-from app.storage import LocalPhotoStorage
+from app.storage import LocalPhotoStorage, MongoPhotoStorage
 
 DEMO_REPORTS = (
     ("Pothole beside bus stop", "pothole", 3.1390, 101.6869, (58, 72, 82)),
@@ -47,7 +47,11 @@ def main() -> None:
         settings.mongo_uri,
         settings.mongo_database,
     )
-    storage = LocalPhotoStorage(settings.upload_dir)
+    storage = (
+        MongoPhotoStorage(repository.collection.database)
+        if settings.photo_storage == "mongodb"
+        else LocalPhotoStorage(settings.upload_dir)
+    )
     analyzer = ImageAnalyzer()
     try:
         repository.ensure_indexes()

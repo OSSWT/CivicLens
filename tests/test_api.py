@@ -4,11 +4,27 @@ from fastapi.testclient import TestClient
 
 
 def test_health_config_and_home_are_available(client: TestClient) -> None:
-    assert client.get("/api/health").json() == {"status": "ok"}
+    health = client.get("/api/health")
+    assert health.json() == {"status": "ok"}
+    assert health.headers["x-content-type-options"] == "nosniff"
+    assert health.headers["x-frame-options"] == "DENY"
     assert client.get("/api/config/public").json()["maps_enabled"] is False
     home = client.get("/")
     assert home.status_code == 200
     assert "CivicLens" in home.text
+    assert client.get("/privacy").status_code == 200
+    assert client.get("/terms").status_code == 200
+
+
+def test_health_reports_repository_failure(client: TestClient) -> None:
+    def fail_healthcheck() -> None:
+        raise RuntimeError("database offline")
+
+    client.app.state.repository.healthcheck = fail_healthcheck
+    response = client.get("/api/health")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Database is unavailable."}
 
 
 def test_create_list_read_and_nearby_preserve_geojson_order(client, create_report) -> None:

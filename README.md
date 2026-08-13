@@ -43,7 +43,9 @@ Browser
 FastAPI application
 |-- Request validation and OpenAPI documentation
 |-- OpenCV image analysis
-|-- Local photo storage
+|-- Pluggable photo storage
+|   |-- MongoDB GridFS for cloud deployment
+|   `-- Local filesystem for development
 `-- Repository interface
     |-- MongoDB + GeoJSON + 2dsphere index
     `-- In-memory test/demo repository
@@ -90,6 +92,7 @@ Configure `.env`:
 CIVICLENS_MONGO_URI=mongodb://localhost:27017
 CIVICLENS_MONGO_DATABASE=civiclens
 CIVICLENS_USE_IN_MEMORY=false
+CIVICLENS_PHOTO_STORAGE=local
 ```
 
 The application creates these indexes during startup:
@@ -102,6 +105,10 @@ Optional synthetic demo records can be created after MongoDB is running:
 ```powershell
 python scripts\seed_demo.py
 ```
+
+For a cloud deployment, set `CIVICLENS_PHOTO_STORAGE=mongodb`. This stores
+photos in MongoDB GridFS so they survive application restarts and hosts with an
+ephemeral filesystem.
 
 ## Google Maps setup
 
@@ -127,6 +134,17 @@ CIVICLENS_ADMIN_API_KEY=replace-with-a-long-random-value
 The web interface sends it as `X-Admin-Key` for status updates, after-photo
 uploads, and deletion. This is an MVP administration boundary; a production
 multi-user version should replace it with authenticated accounts and roles.
+
+## Portfolio deployment
+
+The repository includes a production `Dockerfile` and a Render Blueprint in
+`render.yaml`. The Blueprint deploys in Singapore, waits for GitHub checks to
+pass before auto-deploying, performs database-aware health checks, generates
+the admin secret, and keeps MongoDB and Google Maps credentials outside Git.
+
+Follow the complete Atlas, Render, and Google Maps setup in
+[docs/deployment.md](docs/deployment.md). The Render free instance is suitable
+for a portfolio preview, not an always-on or emergency service.
 
 ## API overview
 
@@ -163,12 +181,16 @@ every push and pull request to `main`.
 ## Privacy and production notes
 
 - Photos are stored in `data/uploads` and are excluded from Git.
+- Cloud photos can be stored in MongoDB GridFS instead of the host filesystem.
 - The server accepts only JPEG, PNG, and WebP files and enforces a size limit.
 - OpenCV scores evidence quality; it does not claim to identify or classify hazards.
 - Location reports may reveal sensitive patterns. A public deployment should add
   moderation, retention rules, rate limiting, and location privacy guidance.
-- Local photo storage is suitable for development. A scaled deployment should
-  use managed object storage and signed upload/download policies.
+- Local photo storage is suitable for development. GridFS keeps this portfolio
+  deployment persistent; a scaled deployment should use managed object storage
+  and signed upload/download policies.
+- Public Privacy and Terms pages describe the demo's data handling and Google
+  Maps terms. They should be reviewed and customized before non-demo use.
 
 ## License
 

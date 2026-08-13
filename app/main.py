@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
@@ -26,7 +26,12 @@ from app.repository import (
     MongoReportRepository,
     ReportRepository,
 )
-from app.storage import LocalPhotoStorage
+from app.storage import (
+    SUPPORTED_CONTENT_TYPES,
+    LocalPhotoStorage,
+    MongoPhotoStorage,
+    PhotoStorage,
+)
 
 STATIC_DIR = PROJECT_ROOT / "app" / "static"
 
@@ -35,14 +40,16 @@ def get_repository(request: Request) -> ReportRepository:
     return request.app.state.repository
 
 
+def get_photo_storage(request: Request) -> PhotoStorage:
+    return request.app.state.photo_storage
+
+
 def create_app(
     *,
     settings: Settings | None = None,
     repository: ReportRepository | None = None,
 ) -> FastAPI:
     active_settings = settings or get_settings()
-    active_settings.upload_dir.mkdir(parents=True, exist_ok=True)
-    storage = LocalPhotoStorage(active_settings.upload_dir)
     analyzer = ImageAnalyzer()
 
     @asynccontextmanager
@@ -58,7 +65,14 @@ def create_app(
                     active_settings.mongo_database,
                 )
         await run_in_threadpool(active_repository.ensure_indexes)
+        if active_settings.photo_storage == "mongodb":
+            if not isinstance(active_repository, MongoReportRepository):
+                raise RuntimeError("MongoDB photo storage requires MongoReportRepository.")
+            active_storage: PhotoStorage = MongoPhotoStorage(active_repository.collection.database)
+        else:
+            active_storage = LocalPhotoStorage(active_settings.upload_dir)
         application.state.repository = active_repository
+        application.state.photo_storage = active_storage
         try:
             yield
         finally:
@@ -72,10 +86,21 @@ def create_app(
         lifespan=lifespan,
     )
     application.state.settings = active_settings
-    application.state.storage = storage
     application.state.analyzer = analyzer
-    application.mount("/uploads", StaticFiles(directory=active_settings.upload_dir), name="uploads")
     application.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+    @application.middleware("http")
+    async def add_security_headers(request: Request, call_next):
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        if request.app.state.settings.environment == "production":
+            response.headers.setdefault(
+                "Strict-Transport-Security",
+                "max-age=31536000; includeSubDomains",
+            )
+        return response
 
     def require_admin(
         request: Request,
@@ -89,8 +114,37 @@ def create_app(
     def home() -> FileResponse:
         return FileResponse(STATIC_DIR / "index.html")
 
+    @application.get("/privacy", include_in_schema=False)
+    def privacy() -> FileResponse:
+        return FileResponse(STATIC_DIR / "privacy.html")
+
+    @application.get("/terms", include_in_schema=False)
+    def terms() -> FileResponse:
+        return FileResponse(STATIC_DIR / "terms.html")
+
+    @application.get("/uploads/{storage_name}", include_in_schema=False)
+    def uploaded_photo(
+        storage_name: str,
+        photo_storage: Annotated[PhotoStorage, Depends(get_photo_storage)],
+    ) -> Response:
+        try:
+            content, content_type = photo_storage.read(storage_name)
+        except FileNotFoundError as error:
+            raise HTTPException(status_code=404, detail="Photo not found.") from error
+        return Response(
+            content=content,
+            media_type=content_type,
+            headers={"Cache-Control": "public, max-age=300"},
+        )
+
     @application.get("/api/health", tags=["system"])
-    def health() -> dict[str, str]:
+    def health(
+        report_repository: Annotated[ReportRepository, Depends(get_repository)],
+    ) -> dict[str, str]:
+        try:
+            report_repository.healthcheck()
+        except Exception as error:
+            raise HTTPException(status_code=503, detail="Database is unavailable.") from error
         return {"status": "ok"}
 
     @application.get("/api/config/public", response_model=PublicConfig, tags=["system"])
@@ -164,11 +218,16 @@ def create_app(
         longitude: Annotated[float, Form(ge=-180, le=180)],
         photo: Annotated[UploadFile, File()],
         report_repository: Annotated[ReportRepository, Depends(get_repository)],
+        photo_storage: Annotated[PhotoStorage, Depends(get_photo_storage)],
     ) -> dict[str, Any]:
         content, content_type = await _read_upload(photo, active_settings.max_upload_bytes)
         try:
             analysis = await run_in_threadpool(analyzer.analyze, content)
-            storage_name, photo_url = await run_in_threadpool(storage.save, content, content_type)
+            storage_name, photo_url = await run_in_threadpool(
+                photo_storage.save,
+                content,
+                content_type,
+            )
         except (InvalidImageError, ValueError) as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
 
@@ -195,7 +254,7 @@ def create_app(
         try:
             return await run_in_threadpool(report_repository.create, document)
         except Exception:
-            await run_in_threadpool(storage.delete, storage_name)
+            await run_in_threadpool(photo_storage.delete, storage_name)
             raise
 
     @application.patch(
@@ -224,6 +283,7 @@ def create_app(
         report_id: str,
         photo: Annotated[UploadFile, File()],
         report_repository: Annotated[ReportRepository, Depends(get_repository)],
+        photo_storage: Annotated[PhotoStorage, Depends(get_photo_storage)],
     ) -> dict[str, Any]:
         existing = await run_in_threadpool(report_repository.get, report_id)
         if existing is None:
@@ -231,12 +291,16 @@ def create_app(
         content, content_type = await _read_upload(photo, active_settings.max_upload_bytes)
         try:
             analysis = await run_in_threadpool(analyzer.analyze, content)
-            before_content = await run_in_threadpool(
-                storage.read,
+            before_content, _ = await run_in_threadpool(
+                photo_storage.read,
                 existing["before_photo"]["storage_name"],
             )
             change_analysis = await run_in_threadpool(analyzer.compare, before_content, content)
-            storage_name, photo_url = await run_in_threadpool(storage.save, content, content_type)
+            storage_name, photo_url = await run_in_threadpool(
+                photo_storage.save,
+                content,
+                content_type,
+            )
         except FileNotFoundError as error:
             raise HTTPException(
                 status_code=409,
@@ -261,11 +325,14 @@ def create_app(
             now,
         )
         if updated is None:
-            await run_in_threadpool(storage.delete, storage_name)
+            await run_in_threadpool(photo_storage.delete, storage_name)
             raise HTTPException(status_code=404, detail="Report not found.")
         old_after = existing.get("after_photo")
         if old_after:
-            await run_in_threadpool(storage.delete, old_after.get("storage_name"))
+            await run_in_threadpool(
+                photo_storage.delete,
+                old_after.get("storage_name"),
+            )
         return updated
 
     @application.delete(
@@ -277,19 +344,20 @@ def create_app(
     def delete_report(
         report_id: str,
         report_repository: Annotated[ReportRepository, Depends(get_repository)],
+        photo_storage: Annotated[PhotoStorage, Depends(get_photo_storage)],
     ) -> None:
         deleted = report_repository.delete(report_id)
         if deleted is None:
             raise HTTPException(status_code=404, detail="Report not found.")
-        storage.delete(deleted.get("before_photo", {}).get("storage_name"))
-        storage.delete((deleted.get("after_photo") or {}).get("storage_name"))
+        photo_storage.delete(deleted.get("before_photo", {}).get("storage_name"))
+        photo_storage.delete((deleted.get("after_photo") or {}).get("storage_name"))
 
     return application
 
 
 async def _read_upload(upload: UploadFile, max_upload_bytes: int) -> tuple[bytes, str]:
     content_type = (upload.content_type or "").lower()
-    if content_type not in LocalPhotoStorage.EXTENSIONS:
+    if content_type not in SUPPORTED_CONTENT_TYPES:
         raise HTTPException(
             status_code=415,
             detail="Only JPEG, PNG, and WebP images are supported.",

@@ -69,6 +69,12 @@
       </section>
     </main>
 
+    <footer class="container-xl pb-4 small text-secondary d-flex flex-wrap gap-3">
+      <span>CivicLens community reporting demo</span>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+    </footer>
+
     <div class="modal fade" id="reportModal" tabindex="-1" aria-labelledby="reportModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content"><form id="reportForm">
         <div class="modal-header"><div><p class="eyebrow mb-1">NEW OBSERVATION</p><h2 class="modal-title fs-4" id="reportModalLabel">Report a community issue</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
@@ -80,6 +86,7 @@
           <div class="col-md-6"><label class="form-label" for="reportLongitude">Longitude</label><input class="form-control" id="reportLongitude" name="longitude" type="number" min="-180" max="180" step="any" required value="101.6869"></div>
           <div class="col-12"><div class="location-hint">Tip: click the map before opening this form to use that exact location.</div></div>
           <div class="col-12"><label class="form-label" for="reportPhoto">Photo evidence</label><input class="form-control" id="reportPhoto" name="photo" type="file" accept="image/jpeg,image/png,image/webp" required><div class="form-text">JPEG, PNG, or WebP. OpenCV will check resolution, brightness, and blur.</div></div>
+          <div class="col-12"><div class="form-check"><input class="form-check-input" id="reportConsent" type="checkbox" required><label class="form-check-label small" for="reportConsent">I have permission to publish this report and agree to the <a href="/terms" target="_blank" rel="noopener">Terms</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Notice</a>.</label></div></div>
         </div></div>
         <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button id="submitReport" type="submit" class="btn btn-primary">Submit report</button></div>
       </form></div></div>

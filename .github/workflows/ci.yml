@@ -55,3 +55,6 @@ jobs:
 
       - name: Run tests with MongoDB integration
         run: python -m pytest --cov=app --cov-report=term-missing
+
+      - name: Build production container
+        run: docker build --tag civiclens:ci .

@@ -16,6 +16,8 @@ Document = dict[str, Any]
 class ReportRepository(Protocol):
     def ensure_indexes(self) -> None: ...
 
+    def healthcheck(self) -> None: ...
+
     def create(self, document: Document) -> Document: ...
 
     def list_reports(
@@ -75,6 +77,9 @@ class MongoReportRepository:
             [("status", ASCENDING), ("category", ASCENDING), ("created_at", DESCENDING)],
             name="reports_filter_sort",
         )
+
+    def healthcheck(self) -> None:
+        self.collection.database.command("ping")
 
     def create(self, document: Document) -> Document:
         stored = deepcopy(document)
@@ -191,6 +196,9 @@ class InMemoryReportRepository:
         self._documents: dict[str, Document] = {}
 
     def ensure_indexes(self) -> None:
+        return None
+
+    def healthcheck(self) -> None:
         return None
 
     def create(self, document: Document) -> Document:

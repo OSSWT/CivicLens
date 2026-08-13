@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 
 from app.repository import MongoReportRepository
+from app.storage import MongoPhotoStorage
 
 
 @pytest.mark.integration
@@ -17,11 +18,16 @@ def test_real_mongo_repository_geospatial_crud() -> None:
 
     database_name = f"civiclens_integration_{uuid4().hex}"
     client, repository = MongoReportRepository.connect(uri, database_name)
+    photo_storage = MongoPhotoStorage(repository.collection.database)
     now = datetime.now(UTC)
     try:
         repository.ensure_indexes()
         indexes = repository.collection.index_information()
         assert indexes["reports_location_2dsphere"]["key"] == [("location", "2dsphere")]
+
+        storage_name, photo_url = photo_storage.save(b"gridfs evidence", "image/jpeg")
+        assert photo_url == f"/uploads/{storage_name}"
+        assert photo_storage.read(storage_name) == (b"gridfs evidence", "image/jpeg")
 
         created = repository.create(
             {
@@ -57,6 +63,9 @@ def test_real_mongo_repository_geospatial_crud() -> None:
         deleted = repository.delete(created["id"])
         assert deleted is not None
         assert repository.get(created["id"]) is None
+        photo_storage.delete(storage_name)
+        with pytest.raises(FileNotFoundError):
+            photo_storage.read(storage_name)
     finally:
         client.drop_database(database_name)
         client.close()

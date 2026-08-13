@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: civiclens
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: CIVICLENS_ENVIRONMENT
+        value: production
+      - key: CIVICLENS_USE_IN_MEMORY
+        value: "false"
+      - key: CIVICLENS_PHOTO_STORAGE
+        value: mongodb
+      - key: CIVICLENS_MONGO_DATABASE
+        value: civiclens
+      - key: CIVICLENS_MONGO_URI
+        sync: false
+      - key: CIVICLENS_ADMIN_API_KEY
+        generateValue: true
+      - key: CIVICLENS_MAX_UPLOAD_MB
+        value: "8"
