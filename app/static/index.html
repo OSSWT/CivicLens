@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="CivicLens maps community issues with verifiable photo evidence.">
+    <title>CivicLens · See it. Map it. Improve it.</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg border-bottom sticky-top">
+      <div class="container-fluid container-xl">
+        <a class="navbar-brand d-flex align-items-center gap-2" href="#top" aria-label="CivicLens home">
+          <span class="brand-mark" aria-hidden="true">C</span><span>CivicLens</span>
+        </a>
+        <div class="d-flex align-items-center gap-3">
+          <span id="apiStatus" class="small text-secondary" aria-live="polite">Connecting…</span>
+          <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#reportModal">Report an issue</button>
+        </div>
+      </div>
+    </nav>
+
+    <main id="top">
+      <section class="hero container-xl py-5">
+        <div class="row align-items-end g-4">
+          <div class="col-lg-8">
+            <p class="eyebrow mb-3">COMMUNITY EVIDENCE, MAPPED</p>
+            <h1 class="display-4 fw-semibold mb-3">See it. Map it.<br><span>Improve it.</span></h1>
+            <p class="lead text-secondary mb-0">Pin public-space issues, add photo evidence, and follow every report from observation to resolution.</p>
+          </div>
+          <div class="col-lg-4">
+            <div class="stats-panel row g-0" aria-label="Report summary">
+              <div class="col-4 stat"><strong id="totalCount">0</strong><span>Total</span></div>
+              <div class="col-4 stat"><strong id="activeCount">0</strong><span>Active</span></div>
+              <div class="col-4 stat"><strong id="resolvedCount">0</strong><span>Resolved</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="container-fluid container-xl pb-5">
+        <div class="workspace-card overflow-hidden">
+          <div class="toolbar d-flex flex-wrap align-items-center gap-2 p-3 border-bottom">
+            <label for="categoryFilter" class="visually-hidden">Category</label>
+            <select id="categoryFilter" class="form-select form-select-sm filter-control">
+              <option value="">All categories</option><option value="pothole">Potholes</option><option value="flooding">Flooding</option><option value="waste">Waste</option><option value="streetlight">Streetlights</option><option value="sidewalk">Sidewalks</option><option value="other">Other</option>
+            </select>
+            <label for="statusFilter" class="visually-hidden">Status</label>
+            <select id="statusFilter" class="form-select form-select-sm filter-control">
+              <option value="">All statuses</option><option value="reported">Reported</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option>
+            </select>
+            <button id="nearbyButton" class="btn btn-sm btn-outline-secondary" type="button">Within 5 km</button>
+            <button id="resetFilters" class="btn btn-sm btn-link text-secondary" type="button">Reset</button>
+            <span id="resultSummary" class="small text-secondary ms-lg-auto" aria-live="polite">Loading reports…</span>
+          </div>
+          <div class="row g-0">
+            <div class="col-lg-8 map-column position-relative">
+              <div id="map" role="application" aria-label="Community issue map"></div>
+              <div id="mapFallback" class="map-fallback d-none"><div><span class="fallback-icon" aria-hidden="true">⌖</span><h2 class="h5 mt-3">Map preview needs an API key</h2><p class="text-secondary mb-0">Reports still work in list view. Add a restricted Google Maps key to enable the interactive map.</p></div></div>
+            </div>
+            <aside class="col-lg-4 report-column" aria-labelledby="reportsHeading">
+              <div class="p-3 border-bottom d-flex align-items-center justify-content-between"><h2 id="reportsHeading" class="h6 mb-0">Recent reports</h2><span class="legend"><i></i> Live data</span></div>
+              <div id="reportList" class="report-list" aria-live="polite"></div>
+              <div id="emptyState" class="empty-state d-none"><p class="mb-1 fw-semibold">No reports found</p><p class="small text-secondary mb-0">Adjust the filters or add the first report here.</p></div>
+            </aside>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="modal fade" id="reportModal" tabindex="-1" aria-labelledby="reportModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content"><form id="reportForm">
+        <div class="modal-header"><div><p class="eyebrow mb-1">NEW OBSERVATION</p><h2 class="modal-title fs-4" id="reportModalLabel">Report a community issue</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+        <div class="modal-body"><div id="reportError" class="alert alert-danger d-none" role="alert"></div><div class="row g-3">
+          <div class="col-md-8"><label class="form-label" for="reportTitle">Title</label><input class="form-control" id="reportTitle" name="title" maxlength="80" required placeholder="e.g. Deep pothole near bus stop"></div>
+          <div class="col-md-4"><label class="form-label" for="reportCategory">Category</label><select class="form-select" id="reportCategory" name="category" required><option value="pothole">Pothole</option><option value="flooding">Flooding</option><option value="waste">Waste</option><option value="streetlight">Streetlight</option><option value="sidewalk">Sidewalk</option><option value="other">Other</option></select></div>
+          <div class="col-12"><label class="form-label" for="reportDescription">Description</label><textarea class="form-control" id="reportDescription" name="description" maxlength="500" rows="3" placeholder="Describe the issue and nearby landmarks"></textarea></div>
+          <div class="col-md-6"><label class="form-label" for="reportLatitude">Latitude</label><input class="form-control" id="reportLatitude" name="latitude" type="number" min="-90" max="90" step="any" required value="3.1390"></div>
+          <div class="col-md-6"><label class="form-label" for="reportLongitude">Longitude</label><input class="form-control" id="reportLongitude" name="longitude" type="number" min="-180" max="180" step="any" required value="101.6869"></div>
+          <div class="col-12"><div class="location-hint">Tip: click the map before opening this form to use that exact location.</div></div>
+          <div class="col-12"><label class="form-label" for="reportPhoto">Photo evidence</label><input class="form-control" id="reportPhoto" name="photo" type="file" accept="image/jpeg,image/png,image/webp" required><div class="form-text">JPEG, PNG, or WebP. OpenCV will check resolution, brightness, and blur.</div></div>
+        </div></div>
+        <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button id="submitReport" type="submit" class="btn btn-primary">Submit report</button></div>
+      </form></div></div>
+    </div>
+
+    <div class="modal fade" id="detailModal" tabindex="-1" aria-labelledby="detailTitle" aria-hidden="true"><div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><p id="detailMeta" class="eyebrow mb-1"></p><h2 class="modal-title fs-4" id="detailTitle"></h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div id="detailBody" class="modal-body"></div></div></div></div>
+
+    <div class="toast-container position-fixed bottom-0 end-0 p-3"><div id="appToast" class="toast" role="status" aria-live="polite" aria-atomic="true"><div class="toast-body d-flex justify-content-between align-items-center gap-3"><span id="toastMessage"></span><button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button></div></div></div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
