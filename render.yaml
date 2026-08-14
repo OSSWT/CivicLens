@@ -18,6 +18,8 @@ services:
         value: civiclens
       - key: CIVICLENS_MONGO_URI
         sync: false
+      - key: CIVICLENS_GOOGLE_MAPS_API_KEY
+        sync: false
       - key: CIVICLENS_ADMIN_API_KEY
         generateValue: true
       - key: CIVICLENS_MAX_UPLOAD_MB
