@@ -1,23 +1,35 @@
-# CivicLens portfolio deployment
+# CivicLens zero-cost portfolio deployment
 
 This guide deploys CivicLens as a Render web service backed by MongoDB Atlas.
 Reports and photos are both stored in Atlas; photos use GridFS, so Render's
 ephemeral filesystem does not cause evidence to disappear after a restart.
 
-The included free Render plan is intended for a portfolio preview. Free web
-services sleep after inactivity and can cold-start on the next request. Upgrade
-the service before treating availability as a production requirement.
+This route does not require a paid service or billing-enabled Google project.
+It is intended for a portfolio preview. Free web services sleep after
+inactivity and can cold-start on the next request; they are not an availability
+guarantee.
+
+To keep the deployment charge-free:
+
+- Choose only Atlas **M0**. Do not choose Flex or a dedicated cluster.
+- Keep Render on the **Hobby** workspace and **Free** instance from
+  `render.yaml`. Do not add a payment method; without one, Render suspends the
+  service instead of charging if included usage is exhausted.
+- Use a **Google Maps Demo Key**. Do not enable Google Cloud billing.
+- Do not add a paid persistent disk, dedicated IP, or paid custom-domain slot.
 
 ## 1. Create the MongoDB Atlas database
 
-1. Sign in to [MongoDB Atlas](https://cloud.mongodb.com/) and create a project
-   and cluster. Select a region near the Render Singapore region when possible.
-2. In **Database Access**, create a dedicated database user. Give it read/write
+1. Sign in to [MongoDB Atlas](https://cloud.mongodb.com/) and create a project.
+2. Create an **M0 Free** cluster. Do not select **Flex**. Select a supported
+   region near the Render Singapore region when possible. Atlas permits one M0
+   cluster per project and the free cluster does not expire.
+3. In **Database Access**, create a dedicated database user. Give it read/write
    access only to the `civiclens` database and generate a strong password.
-3. In **Connect > Drivers**, select Python and copy the SRV connection string.
+4. In **Connect > Drivers**, select Python and copy the SRV connection string.
    Replace the username and password placeholders. Percent-encode special
    characters in credentials when required.
-4. Keep the URI private. It should resemble:
+5. Keep the URI private. It should resemble:
 
    ```text
    mongodb+srv://<username>:<password>@<cluster>.mongodb.net/?retryWrites=true&w=majority
@@ -30,12 +42,16 @@ The Render ranges are added after the service exists in step 3.
 
 1. Sign in to [Render](https://dashboard.render.com/) and connect the GitHub
    repository `OSSWT/CivicLens`.
-2. Choose **New > Blueprint**, select the repository and `main` branch, and
+2. Keep the workspace on the free **Hobby** plan and do not add a payment
+   method. This ensures usage exhaustion suspends the service instead of
+   creating an overage charge.
+3. Choose **New > Blueprint**, select the repository and `main` branch, and
    apply its `render.yaml`.
-3. When Render prompts for the secret environment variable, paste the Atlas URI
+4. Confirm the service instance is **Free** before applying the Blueprint.
+5. When Render prompts for the secret environment variable, paste the Atlas URI
    into `CIVICLENS_MONGO_URI`. Google Maps is intentionally left disabled until
-   the exact Render hostname is available in step 5.
-4. Render generates `CIVICLENS_ADMIN_API_KEY`. Save that value in a password
+   the separate no-billing setup in step 5.
+6. Render generates `CIVICLENS_ADMIN_API_KEY`. Save that value in a password
    manager; it is required for status changes, resolution photos, and deletion.
 
 The first deploy can fail to connect to Atlas until its outbound ranges are
@@ -66,28 +82,23 @@ Open these URLs using the hostname Render assigned:
 Create a test report, reload the application, and confirm that both the report
 and its photo remain available.
 
-## 5. Enable and restrict Google Maps
+## 5. Enable Google Maps without billing
 
-1. In [Google Cloud Console](https://console.cloud.google.com/), create or select
-   a project and configure billing for Google Maps Platform.
-2. Enable only **Maps JavaScript API** for this application.
-3. Create an API key. Under **Application restrictions**, select **Websites**
-   and add the exact Render origin:
+1. Sign in to Google's
+   [Maps Demo Key page](https://developers.google.com/maps/documentation/javascript/demo-key).
+2. Select **Get a Demo Key** and accept the Maps Demo Project terms. Do not add
+   or enable a billing account.
+3. Copy the generated Demo Key.
+4. In Render, add `CIVICLENS_GOOGLE_MAPS_API_KEY` with the Demo Key as its value
+   and redeploy the service.
+5. Confirm the interactive map, report markers, and map-click location input
+   work. If the daily demo limit is reached, Maps pauses until the next day with
+   no charge; the CivicLens list view remains usable.
 
-   ```text
-   https://<your-service>.onrender.com/*
-   ```
-
-   Add the custom-domain origin too if one is configured later.
-4. Under **API restrictions**, restrict the key to **Maps JavaScript API**.
-5. In Render, set `CIVICLENS_GOOGLE_MAPS_API_KEY` to the restricted key and
-   redeploy the service.
-6. Confirm the interactive map loads, then review Google Cloud quotas and
-   billing alerts.
-
-The browser must receive this map key to load Maps JavaScript API. Website and
-API restrictions are therefore the security boundary; the Atlas URI and admin
-key must never be exposed to the browser or committed to Git.
+The Demo Key supports the Maps JavaScript rendering, markers, and events used by
+CivicLens, but Google defines it as testing/prototyping only. The browser must
+receive it to load Maps JavaScript API. The Atlas URI and admin key must never
+be exposed to the browser or committed to Git.
 
 ## 6. Final operational checks
 
@@ -97,8 +108,10 @@ key must never be exposed to the browser or committed to Git.
 - Review and customize the Privacy Notice and Terms for the actual operator and
   intended jurisdiction before sharing the deployment broadly.
 - Rotate the Atlas password, admin key, and Maps key if any secret is exposed.
-- Use paid hosting, backups, moderation, rate limiting, authenticated roles, and
-  managed object storage before moving beyond a portfolio/demo workload.
+- Do not click an Atlas, Render, or Google upgrade/billing prompt while using
+  this zero-cost route.
+- Add moderation, rate limiting, authenticated roles, backups, and managed
+  object storage before moving beyond a portfolio/demo workload.
 
 ## Environment reference
 
@@ -109,6 +122,6 @@ key must never be exposed to the browser or committed to Git.
 | `CIVICLENS_PHOTO_STORAGE` | `mongodb` | No |
 | `CIVICLENS_MONGO_DATABASE` | `civiclens` | No |
 | `CIVICLENS_MONGO_URI` | Atlas SRV URI | Yes |
-| `CIVICLENS_GOOGLE_MAPS_API_KEY` | Restricted browser key | Public-by-design |
+| `CIVICLENS_GOOGLE_MAPS_API_KEY` | No-cost Maps Demo Key | Public-by-design |
 | `CIVICLENS_ADMIN_API_KEY` | Render-generated 256-bit value | Yes |
 | `CIVICLENS_MAX_UPLOAD_MB` | `8` | No |

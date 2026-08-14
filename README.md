@@ -119,9 +119,15 @@ map, add a Maps JavaScript API key:
 CIVICLENS_GOOGLE_MAPS_API_KEY=your-key-here
 ```
 
-For deployment, restrict the key to the production website origin and restrict
-its API access to Maps JavaScript API. Browser map keys are intentionally sent
-to the client; restrictions, not secrecy, protect them. Never commit `.env`.
+For a zero-cost portfolio prototype, use a Google Maps Demo Key. It does not
+require billing details and stops serving requests when its demo quota is
+reached instead of creating charges. Demo keys are not intended for a
+production service.
+
+For a paid production deployment, replace the Demo Key with a standard key,
+restrict it to the production website origin, and restrict its API access to
+Maps JavaScript API. Browser map keys are intentionally sent to the client;
+restrictions, not secrecy, protect them. Never commit `.env`.
 
 ## Administration
 
@@ -137,14 +143,17 @@ multi-user version should replace it with authenticated accounts and roles.
 
 ## Portfolio deployment
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/OSSWT/CivicLens)
+
 The repository includes a production `Dockerfile` and a Render Blueprint in
 `render.yaml`. The Blueprint deploys in Singapore, waits for GitHub checks to
 pass before auto-deploying, performs database-aware health checks, generates
 the admin secret, and keeps MongoDB and Google Maps credentials outside Git.
 
 Follow the complete Atlas, Render, and Google Maps setup in
-[docs/deployment.md](docs/deployment.md). The Render free instance is suitable
-for a portfolio preview, not an always-on or emergency service.
+[docs/deployment.md](docs/deployment.md). It uses an Atlas M0 cluster, a Render
+Free Web Service, and a Google Maps Demo Key. The result is suitable for a
+zero-cost portfolio preview, not an always-on or emergency service.
 
 ## API overview
 

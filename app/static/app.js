@@ -158,7 +158,7 @@ async function uploadAfterPhoto(event) {
 }
 
 async function deleteReport() {
-  if (!window.confirm("Delete this report and both local photos?")) return;
+  if (!window.confirm("Delete this report and both stored photos?")) return;
   try { await $.ajax({ url: `/api/reports/${state.selectedReport.id}`, method: "DELETE", headers: adminHeaders() }); bootstrap.Modal.getOrCreateInstance(document.getElementById("detailModal")).hide(); await loadReports(); showToast("Report deleted."); }
   catch (error) { showToast(readApiError(error)); }
 }
