@@ -27,6 +27,20 @@ def test_health_reports_repository_failure(client: TestClient) -> None:
     assert response.json() == {"detail": "Database is unavailable."}
 
 
+def test_map_double_click_starts_a_report_at_the_selected_location(
+    client: TestClient,
+) -> None:
+    home = client.get("/")
+    script = client.get("/static/app.js")
+
+    assert 'id="mapActionHint"' in home.text
+    assert "Double-click" in home.text
+    assert "disableDoubleClickZoom: true" in script.text
+    assert 'addListener("dblclick"' in script.text
+    assert "openReportFormAtSelectedLocation" in script.text
+    assert "state.locationMarker = new state.AdvancedMarkerElement" in script.text
+
+
 def test_create_list_read_and_nearby_preserve_geojson_order(client, create_report) -> None:
     report = create_report()
 

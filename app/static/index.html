@@ -56,7 +56,8 @@
           </div>
           <div class="row g-0">
             <div class="col-lg-8 map-column position-relative">
-              <div id="map" role="application" aria-label="Community issue map"></div>
+              <div id="map" role="application" aria-label="Community issue map. Double-click a location to start a report there."></div>
+              <div id="mapActionHint" class="map-action-hint" aria-hidden="true">Click to pin · <strong>double-click</strong> to report here</div>
               <div id="mapFallback" class="map-fallback d-none"><div><span class="fallback-icon" aria-hidden="true">⌖</span><h2 class="h5 mt-3">Map preview needs an API key</h2><p class="text-secondary mb-0">Reports still work in list view. Add a no-cost Maps Demo Key or a restricted production key to enable the interactive map.</p></div></div>
             </div>
             <aside class="col-lg-4 report-column" aria-labelledby="reportsHeading">
@@ -84,7 +85,7 @@
           <div class="col-12"><label class="form-label" for="reportDescription">Description</label><textarea class="form-control" id="reportDescription" name="description" maxlength="500" rows="3" placeholder="Describe the issue and nearby landmarks"></textarea></div>
           <div class="col-md-6"><label class="form-label" for="reportLatitude">Latitude</label><input class="form-control" id="reportLatitude" name="latitude" type="number" min="-90" max="90" step="any" required value="3.1390"></div>
           <div class="col-md-6"><label class="form-label" for="reportLongitude">Longitude</label><input class="form-control" id="reportLongitude" name="longitude" type="number" min="-180" max="180" step="any" required value="101.6869"></div>
-          <div class="col-12"><div class="location-hint">Tip: click the map before opening this form to use that exact location.</div></div>
+          <div class="col-12"><div class="location-hint">Tip: double-click the map to pin an exact location and open this form automatically. You can still fine-tune the coordinates here.</div></div>
           <div class="col-12"><label class="form-label" for="reportPhoto">Photo evidence</label><input class="form-control" id="reportPhoto" name="photo" type="file" accept="image/jpeg,image/png,image/webp" required><div class="form-text">JPEG, PNG, or WebP. OpenCV will check resolution, brightness, and blur.</div></div>
           <div class="col-12"><div class="form-check"><input class="form-check-input" id="reportConsent" type="checkbox" required><label class="form-check-label small" for="reportConsent">I have permission to publish this report and agree to the <a href="/terms" target="_blank" rel="noopener">Terms</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Notice</a>.</label></div></div>
         </div></div>

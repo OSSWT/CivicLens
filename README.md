@@ -21,7 +21,7 @@ Dayline and the native Kotlin/Room architecture in KeepSpot.
 ## Features
 
 - Create reports for potholes, flooding, waste, streetlights, sidewalks, or other issues
-- Select exact coordinates by clicking the map or entering latitude/longitude
+- Pin exact coordinates with one map click, or double-click to open a report there immediately
 - Inspect image resolution, brightness, and Laplacian blur score before storage
 - Browse, filter, and find reports within a 5 km radius
 - Display report status with distinct Google Maps Advanced Markers

@@ -1,7 +1,7 @@
 "use strict";
 
 const state = {
-  reports: [], map: null, markers: [], selectedReport: null,
+  reports: [], map: null, markers: [], locationMarker: null, selectedReport: null,
   selectedLocation: { lat: 3.139, lng: 101.6869 }, nearbyOnly: false,
 };
 const statusLabels = { reported: "Reported", in_progress: "In progress", resolved: "Resolved" };
@@ -37,6 +37,7 @@ function bindEvents() {
     loadReports();
   });
   $("#reportForm").on("submit", submitReport);
+  $("#reportLatitude, #reportLongitude").on("change", syncLocationFromInputs);
   $("#reportList").on("click", ".report-card", function openCard() { openReport($(this).data("report-id")); });
   $("#detailBody").on("submit", "#statusForm", updateStatus);
   $("#detailBody").on("submit", "#afterPhotoForm", uploadAfterPhoto);
@@ -69,14 +70,60 @@ async function initializeMap(defaultCenter) {
   state.map = new Map(document.getElementById("map"), {
     center: { lat: defaultCenter[0], lng: defaultCenter[1] }, zoom: 13,
     mapId: "DEMO_MAP_ID", mapTypeControl: false, streetViewControl: false,
+    disableDoubleClickZoom: true,
   });
-  state.map.addListener("click", function chooseLocation(event) {
-    state.selectedLocation = { lat: event.latLng.lat(), lng: event.latLng.lng() };
-    syncLocationInputs(); showToast("Location selected. Open “Report an issue” to continue.");
+  state.map.addListener("click", function previewLocation(event) {
+    if (!selectLocation(event.latLng)) return;
+    showToast("Location pinned. Double-click the map to report here.");
+  });
+  state.map.addListener("dblclick", function startReport(event) {
+    if (!selectLocation(event.latLng)) return;
+    openReportFormAtSelectedLocation();
   });
 }
 
-function showMapFallback() { $("#map").addClass("d-none"); $("#mapFallback").removeClass("d-none"); }
+function selectLocation(latLng) {
+  if (!latLng) return false;
+  state.selectedLocation = { lat: latLng.lat(), lng: latLng.lng() };
+  syncLocationInputs(); renderLocationMarker();
+  return true;
+}
+
+function renderLocationMarker() {
+  if (!state.map || !state.AdvancedMarkerElement || !state.PinElement) return;
+  if (state.locationMarker) {
+    state.locationMarker.position = state.selectedLocation;
+    state.locationMarker.map = state.map;
+    return;
+  }
+  const pin = new state.PinElement({
+    background: "#e85d2a", borderColor: "#ffffff", glyphColor: "#ffffff", glyph: "+",
+  });
+  state.locationMarker = new state.AdvancedMarkerElement({
+    map: state.map, position: state.selectedLocation, title: "New report location",
+    content: pin.element, zIndex: 1000,
+  });
+}
+
+function openReportFormAtSelectedLocation() {
+  const modalElement = document.getElementById("reportModal");
+  modalElement.addEventListener("shown.bs.modal", () => $("#reportTitle").trigger("focus"), { once: true });
+  bootstrap.Modal.getOrCreateInstance(modalElement).show();
+  showToast(`Reporting at ${state.selectedLocation.lat.toFixed(6)}, ${state.selectedLocation.lng.toFixed(6)}.`);
+}
+
+function syncLocationFromInputs() {
+  const lat = Number($("#reportLatitude").val()); const lng = Number($("#reportLongitude").val());
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) return;
+  state.selectedLocation = { lat, lng }; renderLocationMarker();
+}
+
+function clearLocationMarker() {
+  if (!state.locationMarker) return;
+  state.locationMarker.map = null; state.locationMarker = null;
+}
+
+function showMapFallback() { $("#map, #mapActionHint").addClass("d-none"); $("#mapFallback").removeClass("d-none"); }
 
 async function loadReports() {
   const params = {}; const category = $("#categoryFilter").val(); const status = $("#statusFilter").val();
@@ -123,7 +170,7 @@ async function submitReport(event) {
   event.preventDefault(); const $button = $("#submitReport").prop("disabled", true).text("Analyzing photo…"); $("#reportError").addClass("d-none");
   try {
     const report = await ajaxForm("/api/reports", new FormData(event.currentTarget));
-    bootstrap.Modal.getOrCreateInstance(document.getElementById("reportModal")).hide(); event.currentTarget.reset(); syncLocationInputs(); await loadReports();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("reportModal")).hide(); event.currentTarget.reset(); clearLocationMarker(); syncLocationInputs(); await loadReports();
     showToast(report.before_photo.analysis.accepted ? "Report submitted with clear photo evidence." : `Report submitted with ${report.before_photo.analysis.warnings.length} photo warning(s).`);
   } catch (error) { $("#reportError").text(readApiError(error)).removeClass("d-none"); }
   finally { $button.prop("disabled", false).text("Submit report"); }
