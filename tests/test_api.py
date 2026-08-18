@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from fastapi.testclient import TestClient
 
 
@@ -12,6 +14,11 @@ def test_health_config_and_home_are_available(client: TestClient) -> None:
     home = client.get("/")
     assert home.status_code == 200
     assert "CivicLens" in home.text
+    assert home.headers["cache-control"] == "no-cache"
+    asset_versions = re.findall(r"/static/(?:styles\.css|app\.js)\?v=([a-f0-9]{12})", home.text)
+    assert len(asset_versions) == 2
+    assert len(set(asset_versions)) == 1
+    assert "__ASSET_VERSION__" not in home.text
     assert client.get("/privacy").status_code == 200
     assert client.get("/terms").status_code == 200
 

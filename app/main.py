@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import hashlib
 import secrets
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
@@ -34,6 +35,18 @@ from app.storage import (
 )
 
 STATIC_DIR = PROJECT_ROOT / "app" / "static"
+
+
+def render_home_page() -> str:
+    digest = hashlib.sha256()
+    for asset_name in ("app.js", "styles.css"):
+        digest.update((STATIC_DIR / asset_name).read_bytes())
+    asset_version = digest.hexdigest()[:12]
+    return (
+        (STATIC_DIR / "index.html")
+        .read_text(encoding="utf-8")
+        .replace("__ASSET_VERSION__", asset_version)
+    )
 
 
 def get_repository(request: Request) -> ReportRepository:
@@ -87,6 +100,7 @@ def create_app(
     )
     application.state.settings = active_settings
     application.state.analyzer = analyzer
+    home_page = render_home_page()
     application.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @application.middleware("http")
@@ -111,8 +125,8 @@ def create_app(
             raise HTTPException(status_code=401, detail="A valid X-Admin-Key header is required.")
 
     @application.get("/", include_in_schema=False)
-    def home() -> FileResponse:
-        return FileResponse(STATIC_DIR / "index.html")
+    def home() -> HTMLResponse:
+        return HTMLResponse(home_page, headers={"Cache-Control": "no-cache"})
 
     @application.get("/privacy", include_in_schema=False)
     def privacy() -> FileResponse:
